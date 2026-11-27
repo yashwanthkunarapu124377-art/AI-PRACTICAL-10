@@ -1,0 +1,63 @@
+# Run: python P10_value_iteration.py
+# Library: none. Only plain Python 3
+
+ROWS, COLS = 3, 4
+GAMMA = 0.9
+THETA = 1e-4
+
+# Terminal states: (row, col): reward
+TERMINALS = {(0, 3): 1.0, (1, 3): -1.0}
+WALLS = {(1, 1)}
+ACTIONS = {"U": (-1, 0), "D": (1, 0), "L": (0, -1), "R": (0, 1)}
+
+def get_next_state(r, c, action):
+    dr, dc = ACTIONS[action]
+    nr, nc = r + dr, c + dc
+    if 0 <= nr < ROWS and 0 <= nc < COLS and (nr, nc) not in WALLS:
+        return (nr, nc)
+    return (r, c)
+
+def value_iteration():
+    V = {(r, c): 0.0 for r in range(ROWS) for c in range(COLS) if (r, c) not in WALLS}
+    for s, rew in TERMINALS.items():
+        V[s] = rew
+
+    while True:
+        delta = 0
+        new_V = V.copy()
+        for s in V:
+            if s in TERMINALS:
+                continue
+            action_values = []
+            for a in ACTIONS:
+                ns = get_next_state(s[0], s[1], a)
+                # Living penalty -0.04 + discounted future value
+                val = -0.04 + GAMMA * V[ns]
+                action_values.append(val)
+            new_V[s] = max(action_values)
+            delta = max(delta, abs(new_V[s] - V[s]))
+        V = new_V
+        if delta < THETA:
+            break
+
+    # Extract optimal policy
+    policy = {}
+    for s in V:
+        if s in TERMINALS:
+            policy[s] = "GOAL" if TERMINALS[s] > 0 else "TRAP"
+        else:
+            best_a = max(ACTIONS, key=lambda a: -0.04 + GAMMA * V[get_next_state(s[0], s[1], a)])
+            policy[s] = best_a
+    return V, policy
+
+if __name__ == "__main__":
+    V, policy = value_iteration()
+    print("--- Grid-World Optimal Values & Policy ---")
+    for r in range(ROWS):
+        row_str = []
+        for c in range(COLS):
+            if (r, c) in WALLS:
+                row_str.append("  WALL  ")
+            else:
+                row_str.append(f"{V[(r,c)]:+.2f}({policy[(r,c)]})")
+        print(" | ".join(row_str))
